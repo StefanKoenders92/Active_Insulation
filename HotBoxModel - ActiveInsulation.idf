@@ -1,0 +1,817 @@
+!-Generator IDFEditor 1.48
+!-Option OriginalOrderTop UseSpecialFormat
+
+!-NOTE: All comments with '!-' are ignored by the IDFEditor and are generated automatically.
+!-      Use '!' comments if they need to be retained when using the IDFEditor.
+
+
+ZoneHVAC:IdealLoadsAirSystem,
+    ILS_ZoneCold,            !- Name
+    AlwaysON,                !- Availability Schedule Name
+    Cold_Inlet,              !- Zone Supply Air Node Name
+    ,                        !- Zone Exhaust Air Node Name
+    50,                      !- Maximum Heating Supply Air Temperature {C}
+    13,                      !- Minimum Cooling Supply Air Temperature {C}
+    0.0156,                  !- Maximum Heating Supply Air Humidity Ratio {kgWater/kgDryAir}
+    0.0077,                  !- Minimum Cooling Supply Air Humidity Ratio {kgWater/kgDryAir}
+    NoLimit,                 !- Heating Limit
+    ,                        !- Maximum Heating Air Flow Rate {m3/s}
+    ,                        !- Maximum Sensible Heating Capacity {W}
+    NoLimit,                 !- Cooling Limit
+    ,                        !- Maximum Cooling Air Flow Rate {m3/s}
+    ,                        !- Maximum Total Cooling Capacity {W}
+    ,                        !- Heating Availability Schedule Name
+    ,                        !- Cooling Availability Schedule Name
+    None,                    !- Dehumidification Control Type
+    0.7,                     !- Cooling Sensible Heat Ratio {dimensionless}
+    None,                    !- Humidification Control Type
+    ,                        !- Design Specification Outdoor Air Object Name
+    ,                        !- Outdoor Air Inlet Node Name
+    None,                    !- Demand Controlled Ventilation Type
+    NoEconomizer,            !- Outdoor Air Economizer Type
+    None,                    !- Heat Recovery Type
+    0.7,                     !- Sensible Heat Recovery Effectiveness {dimensionless}
+    0.65;                    !- Latent Heat Recovery Effectiveness {dimensionless}
+
+ZoneControl:Thermostat,
+    ZoneCold_ConstantTemp,   !- Name
+    ZoneCold,                !- Zone or ZoneList Name
+    Thermostat_Schedule,     !- Control Type Schedule Name
+    ThermostatSetpoint:SingleCooling,  !- Control 1 Object Type
+    Always_0;                !- Control 1 Name
+
+ThermostatSetpoint:SingleCooling,
+    Always_0,                !- Name
+    Constant Temp;           !- Setpoint Temperature Schedule Name
+
+Schedule:Compact,
+    Thermostat_Schedule,     !- Name
+    TEMPERATURE,             !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: AllDays,            !- Field 2
+    Until: 24:00,  2;        !- Field 4
+
+ZoneHVAC:EquipmentList,
+    ZoneColdEquip,           !- Name
+    ZoneHVAC:IdealLoadsAirSystem,  !- Zone Equipment 1 Object Type
+    ILS_ZoneCold,            !- Zone Equipment 1 Name
+    1,                       !- Zone Equipment 1 Cooling Sequence
+    1;                       !- Zone Equipment 1 Heating or No-Load Sequence
+
+ZoneHVAC:EquipmentConnections,
+    ZoneCold,                !- Zone Name
+    ZoneColdEquip,           !- Zone Conditioning Equipment List Name
+    Cold_Inlet,              !- Zone Air Inlet Node or NodeList Name
+    ,                        !- Zone Air Exhaust Node or NodeList Name
+    Cold_ZAN,                !- Zone Air Node Name
+    Cold_ZRAN;               !- Zone Return Air Node Name
+
+Output:Variable,AI_SinglePanel,Zone Ventilated Slab Air Mass Flow Rate,Timestep;
+
+EnergyManagementSystem:ProgramCallingManager,
+    StartingSetPoints,       !- Name
+    BeginNewEnvironment,     !- EnergyPlus Model Calling Point
+    SetTemp;                 !- Program Name 1
+
+EnergyManagementSystem:ProgramCallingManager,
+    ActiveInsulationControl, !- Name
+    AfterPredictorBeforeHVACManagers,  !- EnergyPlus Model Calling Point
+    SetMode;                 !- Program Name 1
+
+EnergyManagementSystem:Program,
+    SetMode,                 !- Name
+    IF OpTempZone < HeatingTemp,  !- Program Line 1
+    RUN Heating,             !- Program Line 2
+    RETURN,                  !- A4
+    ELSEIF OpTempZone > CoolingTemp,  !- A5
+    RUN Cooling,             !- A6
+    RETURN,                  !- A7
+    ENDIF;                   !- A8
+
+EnergyManagementSystem:Program,
+    SetTemp,                 !- Name
+    SET ControlTempCoolingHigh = 1,  !- Program Line 1
+    SET ControlTempCoolingLow = 0,  !- Program Line 2
+    SET ControlTempHeatingHigh = 0,  !- A4
+    SET ControlTempHeatingLow = -1,  !- A5
+    SET HeatingTemp = ControlTempHeatingHigh,  !- A6
+    SET CoolingTemp = ControlTempCoolingLow;  !- A7
+
+EnergyManagementSystem:Subroutine,
+    Heating,                 !- Name
+    IF OpTempZone < (HeatingTemp - 0.1),  !- Program Line 1
+    SET HeatingTemp = ControlTempHeatingHigh,  !- Program Line 2
+    IF SurfTemp > OpTempZone,!- A4
+    SET SystemMassFlowRate = 1.0,  !- A5
+    ELSEIF SurfTemp < OpTempZone,  !- A6
+    SET SystemMassFlowRate = 0.0,  !- A7
+    ENDIF,                   !- A8
+    RETURN,                  !- A9
+    ELSEIF OpTempZone > (HeatingTemp - 0.1),  !- A10
+    SET HeatingTemp = ControlTempHeatingLow,  !- A11
+    SET SystemMassFlowRate = 0.0,  !- A12
+    ENDIF,                   !- A13
+    RETURN;                  !- A14
+
+EnergyManagementSystem:Subroutine,
+    Cooling,                 !- Name
+    IF OpTempZone > (CoolingTemp + 0.1),  !- Program Line 1
+    SET CoolingTemp = ControlTempCoolingLow,  !- Program Line 2
+    IF SurfTemp < OpTempZone,!- A4
+    SET SystemMassFlowRate = 1.0,  !- A5
+    ELSEIF SurfTEmp > OpTempZone,  !- A6
+    SET SystemMassFlowRate = 0.0,  !- A7
+    ENDIF,                   !- A8
+    RETURN,                  !- A9
+    ELSEIF OpTempZone < (CoolingTemp + 0.1),  !- A10
+    SET CoolingTemp = ControlTempCoolingHigh,  !- A11
+    SET SystemMassFlowRate = 0.0,  !- A12
+    ENDIF,                   !- A13
+    RETURN;                  !- A14
+
+EnergyManagementSystem:GlobalVariable,
+    ControlTempCoolingLow,   !- Erl Variable 1 Name
+    ControlTempHeatingLow,   !- Erl Variable 2 Name
+    ControlTempCoolingHigh,  !- Erl Variable 3 Name
+    ControlTempheatingHigh,  !- A4
+    HeatingTemp,             !- A5
+    CoolingTemp;             !- A6
+
+Schedule:Compact,
+    Equipment,               !- Name
+    FRACTIONAL,              !- Schedule Type Limits Name
+    Through: 1/1,            !- Field 1
+    For: AllDays,            !- Field 2
+    Until: 24:00, 1,         !- Field 4
+    Through: 12/31,          !- Field 5
+    For: AllDays,            !- Field 6
+    Until 24:00,             !- Field 7
+    1;                       !- Field 8
+
+Output:Variable,AI-INTIN,System Node Temperature ,Timestep;
+Output:Variable,AI-INTOUT,System Node Temperature ,Timestep;
+Output:Variable,AI-EXTIN,System Node Temperature ,Timestep;
+Output:Variable,AI-EXTOUT,System Node Temperature ,Timestep;
+
+EnergyManagementSystem:Sensor,
+    OpTempZone,              !- Name
+    ZoneHot,                 !- Output:Variable or Output:Meter Index Key Name
+    Zone Operative Temperature ;  !- Output:Variable or Output:Meter Name
+
+EnergyManagementSystem:Actuator,
+    SystemMassFlowRate,      !- Name
+    AI-FAN,                  !- Actuated Component Unique Name
+    Fan,                     !- Actuated Component Type
+    Fan Air Mass Flow Rate;  !- Actuated Component Control Type
+
+EnergyManagementSystem:Sensor,
+    SurfTemp,                !- Name
+    ZoneColdIntPart,         !- Output:Variable or Output:Meter Index Key Name
+    Surface Inside Face Temperature ;  !- Output:Variable or Output:Meter Name
+
+Output:EnergyManagementSystem,
+    Verbose,                 !- Actuator Availability Dictionary Reporting
+    Verbose,                 !- Internal Variable Availability Dictionary Reporting
+    Verbose;                 !- EMS Runtime Language Debug Output Level
+
+Output:Variable,ZoneCold,Zone Mean Air Temperature ,Timestep;
+Output:Variable,ZoneCold,Zone Mean Radiant Temperature ,Timestep;
+
+Zone,
+    ZoneAI,                  !- Name
+    ,                        !- Direction of Relative North {deg}
+    , , ,                               !- X,Y,Z  {m}
+    1;                       !- Type
+
+BuildingSurface:Detailed,
+    ZoneAIFloor,             !- Name
+    Floor,                   !- Surface Type
+    Floor,                   !- Construction Name
+    ZoneAI,                  !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    1.5, 1.52, 0,                       !- X,Y,Z  1 {m}
+    1.5, 1.5, 0,                        !- X,Y,Z  2 {m}
+    0, 1.5, 0,                          !- X,Y,Z  3 {m}
+    0, 1.52, 0;                         !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneAIRoof,              !- Name
+    Roof,                    !- Surface Type
+    Roof,                    !- Construction Name
+    ZoneAI,                  !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    0, 1.52, 1.5,                       !- X,Y,Z  1 {m}
+    0.0, 1.5, 1.5,                      !- X,Y,Z  2 {m}
+    1.5, 1.5, 1.5,                      !- X,Y,Z  3 {m}
+    1.5, 1.52, 1.5;                     !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneAIInPartCold,        !- Name
+    Wall,                    !- Surface Type
+    ActiveInsulationOUT,     !- Construction Name
+    ZoneAI,                  !- Zone Name
+    Surface,                 !- Outside Boundary Condition
+    ZoneColdIntPart,         !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    1.5, 1.52, 1.5,                     !- X,Y,Z  1 {m}
+    1.5, 1.52, 0.0,                     !- X,Y,Z  2 {m}
+    0.0, 1.52, 0,                       !- X,Y,Z  3 {m}
+    0.0, 1.52, 1.5;                     !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneAIExtEast,           !- Name
+    Wall,                    !- Surface Type
+    Exterior Wall,           !- Construction Name
+    ZoneAI,                  !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    1.5, 1.5, 1.5,                      !- X,Y,Z  1 {m}
+    1.5, 1.5, 0.0,                      !- X,Y,Z  2 {m}
+    1.5, 1.52, 0.0,                     !- X,Y,Z  3 {m}
+    1.5, 1.52, 1.5;                     !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneAIIntPartHot,        !- Name
+    Wall,                    !- Surface Type
+    ActiveInsulationOUT,     !- Construction Name
+    ZoneAI,                  !- Zone Name
+    Surface,                 !- Outside Boundary Condition
+    ZoneHotIntPart,          !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    0, 1.5, 1.5,                        !- X,Y,Z  1 {m}
+    0, 1.5, 0.0,                        !- X,Y,Z  2 {m}
+    1.5, 1.5, 0.0,                      !- X,Y,Z  3 {m}
+    1.5, 1.5, 1.5;                      !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneAIExtWest,           !- Name
+    Wall,                    !- Surface Type
+    Exterior Wall,           !- Construction Name
+    ZoneAI,                  !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    0, 1.52, 1.5,                       !- X,Y,Z  1 {m}
+    0, 1.52, 0.0,                       !- X,Y,Z  2 {m}
+    0.0, 1.5, 0.0,                      !- X,Y,Z  3 {m}
+    0.0, 1.5, 1.5;                      !- X,Y,Z  4 {m}
+
+Material,
+    AluminiumFoil,           !- Name
+    Smooth,                  !- Roughness
+    0.001,                   !- Thickness {m}
+    0.033,                   !- Conductivity {W/m-K}
+    30,                      !- Density {kg/m3}
+    1500;                    !- Specific Heat {J/kg-K}
+
+Material,
+    Insulation,              !- Name
+    MediumSmooth,            !- Roughness
+    0.08,                    !- Thickness {m}
+    0.033,                   !- Conductivity {W/m-K}
+    30,                      !- Density {kg/m3}
+    1500;                    !- Specific Heat {J/kg-K}
+
+Construction:InternalSource,
+    ActiveInsulationOUT,     !- Name
+    1,                       !- Source Present After Layer Number
+    1,                       !- Temperature Calculation Requested After Layer Number
+    1,                       !- Dimensions for the CTF Calculation
+    0.01,                    !- Tube Spacing {m}
+    AluminiumFoil,           !- Outside Layer
+    Insulation;              !- Layer 2
+
+Construction:InternalSource,
+    ActiveInsulationINT,     !- Name
+    1,                       !- Source Present After Layer Number
+    1,                       !- Temperature Calculation Requested After Layer Number
+    1,                       !- Dimensions for the CTF Calculation
+    0.01,                    !- Tube Spacing {m}
+    Insulation,              !- Outside Layer
+    AluminiumFoil;           !- Layer 2
+
+ZoneHVAC:VentilatedSlab,
+    AI_SinglePanel,          !- Name
+    VentSlab AlwaysON,       !- Availability Schedule Name
+    ZoneHot,                 !- Zone Name
+    ActiveInsulation,        !- Surface Name or Radiant Surface Group Name
+    0.0047,                  !- Maximum Air Flow Rate {m3/s}
+    FixedAmount,             !- Outdoor Air Control Type
+    0,                       !- Minimum Outdoor Air Flow Rate {m3/s}
+    VentSlab AlwaysON,       !- Minimum Outdoor Air Schedule Name
+    0,                       !- Maximum Outdoor Air Flow Rate {m3/s}
+    VentSlab AlwaysON,       !- Maximum Outdoor Air Fraction or Temperature Schedule Name
+    SeriesSlabs,             !- System Configuration Type
+    0,                       !- Hollow Core Inside Diameter {m}
+    0,                       !- Hollow Core Length {m}
+    0,                       !- Number of Cores
+    OperativeTemperature,    !- Temperature Control Type
+    HeatTempHighInlet,       !- Heating High Air Temperature Schedule Name
+    HeatTempLowInlet,        !- Heating Low Air Temperature Schedule Name
+    HeatControlTempHigh,     !- Heating High Control Temperature Schedule Name
+    HeatControlTempLow,      !- Heating Low Control Temperature Schedule Name
+    CoolTempHighInlet,       !- Cooling High Air Temperature Schedule Name
+    CoolTempLowInlet,        !- Cooling Low Air Temperature Schedule Name
+    CoolControlTempHigh,     !- Cooling High Control Temperature Schedule Name
+    CoolControlTempLow,      !- Cooling Low Control Temperature Schedule Name
+    AI-RAN,                  !- Return Air Node Name
+    AI-FON,                  !- Slab In Node Name
+    ,                        !- Zone Supply Air Node Name
+    AI-OAN,                  !- Outdoor Air Node Name
+    AI-RELIEF,               !- Relief Air Node Name
+    AI-OAMON,                !- Outdoor Air Mixer Outlet Node Name
+    AI-FON,                  !- Fan Outlet Node Name
+    AI-FAN,                  !- Fan Name
+    None;                    !- Coil Option Type
+
+ZoneHVAC:VentilatedSlab:SlabGroup,
+    ActiveInsulation,        !- Name
+    ZoneHot,                 !- Zone 1 Name
+    ZoneHotIntPart,          !- Surface 1 Name
+    0.005,                   !- Core Diameter for Surface 1 {m}
+    0.8,                     !- Core Length for Surface 1 {m}
+    20,                      !- Core Numbers for Surface 1
+    AI-INTIN,                !- Slab Inlet Node Name for Surface 1
+    AI-INTOUT,               !- Slab Outlet Node Name for Surface 1
+    ZoneAI,                  !- Zone 2 Name
+    ZoneAIInPartCold,        !- Surface 2 Name
+    0.005,                   !- Core Diameter for Surface 2 {m}
+    0.8,                     !- Core Length for Surface 2 {m}
+    20,                      !- Core Numbers for Surface 2
+    AI-EXTIN,                !- Slab Inlet Node Name for Surface 2
+    AI-EXTOUT;               !- Slab Outlet Node Name for Surface 2
+
+Fan:ConstantVolume,
+    AI-FAN,                  !- Name
+    VentSlab AlwaysON,       !- Availability Schedule Name
+    0.8,                     !- Fan Total Efficiency
+    2.5,                     !- Pressure Rise {Pa}
+    0.0047,                  !- Maximum Flow Rate {m3/s}
+    0.95,                    !- Motor Efficiency
+    1,                       !- Motor In Airstream Fraction
+    AI-OAMON,                !- Air Inlet Node Name
+    AI-FON;                  !- Air Outlet Node Name
+
+ZoneHVAC:EquipmentList,
+    ZoneAIEquip,             !- Name
+    ZoneHVAC:VentilatedSlab, !- Zone Equipment 1 Object Type
+    AI_SinglePanel,          !- Zone Equipment 1 Name
+    1,                       !- Zone Equipment 1 Cooling Sequence
+    1;                       !- Zone Equipment 1 Heating or No-Load Sequence
+
+ZoneHVAC:EquipmentConnections,
+    ZoneHot,                 !- Zone Name
+    ZoneAIEquip,             !- Zone Conditioning Equipment List Name
+    ,                        !- Zone Air Inlet Node or NodeList Name
+    ,                        !- Zone Air Exhaust Node or NodeList Name
+    AI-ZAN,                  !- Zone Air Node Name
+    AI-ZRAN;                 !- Zone Return Air Node Name
+
+OutdoorAir:Node,
+    AI-OAN,                  !- Name
+    2.6;                     !- Height Above Ground {m}
+
+Zone,
+    ZoneHot,                 !- Name
+    ,                        !- Direction of Relative North {deg}
+    , , ,                               !- X,Y,Z  {m}
+    1;                       !- Type
+
+BuildingSurface:Detailed,
+    ZoneColdFloor,           !- Name
+    Floor,                   !- Surface Type
+    Floor,                   !- Construction Name
+    ZoneCold,                !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    1.5, 2.52, 0,                       !- X,Y,Z  1 {m}
+    1.5, 1.52, 0,                       !- X,Y,Z  2 {m}
+    0, 1.52, 0,                         !- X,Y,Z  3 {m}
+    0, 2.52, 0;                         !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneColdRoof,            !- Name
+    Roof,                    !- Surface Type
+    Roof,                    !- Construction Name
+    ZoneCold,                !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    0, 2.52, 1.5,                       !- X,Y,Z  1 {m}
+    0.0, 1.52, 1.5,                     !- X,Y,Z  2 {m}
+    1.5, 1.52, 1.5,                     !- X,Y,Z  3 {m}
+    1.5, 2.52, 1.5;                     !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneColdExtEast,         !- Name
+    Wall,                    !- Surface Type
+    Exterior Wall,           !- Construction Name
+    ZoneCold,                !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    1.5, 1.52, 1.5,                     !- X,Y,Z  1 {m}
+    1.5, 1.52, 0.0,                     !- X,Y,Z  2 {m}
+    1.5, 2.52, 0.0,                     !- X,Y,Z  3 {m}
+    1.5, 2.52, 1.5;                     !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneColdExtWest,         !- Name
+    Wall,                    !- Surface Type
+    Exterior Wall,           !- Construction Name
+    ZoneCold,                !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    0, 2.52, 1.5,                       !- X,Y,Z  1 {m}
+    0, 2.52, 0.0,                       !- X,Y,Z  2 {m}
+    0.0, 1.52, 0.0,                     !- X,Y,Z  3 {m}
+    0.0, 1.52, 1.5;                     !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneColdExtNorth,        !- Name
+    Wall,                    !- Surface Type
+    Exterior Wall,           !- Construction Name
+    ZoneHot,                 !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    1.5, 2.52, 1.5,                     !- X,Y,Z  1 {m}
+    1.5, 2.52, 0.0,                     !- X,Y,Z  2 {m}
+    0.0, 2.52, 0,                       !- X,Y,Z  3 {m}
+    0.0, 2.52, 1.5;                     !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneColdIntPart,         !- Name
+    Wall,                    !- Surface Type
+    ActiveInsulationINT,     !- Construction Name
+    ZoneCold,                !- Zone Name
+    Surface,                 !- Outside Boundary Condition
+    ZoneAIInPartCold,        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    0, 1.52, 1.5,                       !- X,Y,Z  1 {m}
+    0, 1.52, 0.0,                       !- X,Y,Z  2 {m}
+    1.5, 1.52, 0.0,                     !- X,Y,Z  3 {m}
+    1.5, 1.52, 1.5;                     !- X,Y,Z  4 {m}
+
+Schedule:Compact,
+    Constant Temp,           !- Name
+    TEMPERATURE,             !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: AllDays,            !- Field 2
+    Until: 24:00, 0;         !- Field 4
+
+Output:Variable,ZoneHot,Zone Mean Air Temperature ,Timestep;
+Output:Variable,ZoneHot,Zone Mean Radiant Temperature ,Timestep;
+Output:Variable,*,Site Outdoor Air Drybulb Temperature ,Timestep;
+Output:Variable,ZoneHotIntPart,Surface Inside Face Convection Heat Transfer Coefficient ,Timestep;
+Output:Variable,ZoneColdIntPart,Surface Inside Face Convection Heat Transfer Coefficient ,Timestep;
+
+ElectricEquipment,
+    Electric Heater,         !- Name
+    ZoneHot,                 !- Zone or ZoneList Name
+    Equipment,               !- Schedule Name
+    EquipmentLevel,          !- Design Level Calculation Method
+    15,                      !- Design Level {W}
+    ,                        !- Watts per Zone Floor Area {W/m2}
+    ,                        !- Watts per Person {W/person}
+    ,                        !- Fraction Latent
+    ,                        !- Fraction Radiant
+    ,                        !- Fraction Lost
+    General;                 !- End-Use Subcategory
+
+Output:Variable,ZoneColdIntPart,Surface Inside Face Temperature ,Timestep;
+Output:Variable,ZoneHotIntPart,Surface Inside Face Temperature ,Timestep;
+
+ShadowCalculation,
+    AverageOverDaysInFrequency,  !- Calculation Method
+    30,                      !- Calculation Frequency
+    3000;                    !- Maximum Figures in Shadow Overlap Calculations
+
+SurfaceConvectionAlgorithm:Inside,TARP;
+SurfaceConvectionAlgorithm:Outside,DOE-2;
+HeatBalanceAlgorithm,ConductionTransferFunction,200,0.1,1000;
+
+ScheduleTypeLimits,
+    TEMPERATURE,             !- Name
+    -60,                     !- Lower Limit Value
+    200,                     !- Upper Limit Value
+    Continuous,              !- Numeric Type
+    Temperature;             !- Unit Type
+
+ScheduleTypeLimits,
+    ON/OFF,                  !- Name
+    0,                       !- Lower Limit Value
+    1,                       !- Upper Limit Value
+    Discrete;                !- Numeric Type
+
+ScheduleTypeLimits,
+    FRACTIONAL,              !- Name
+    0,                       !- Lower Limit Value
+    1,                       !- Upper Limit Value
+    Continuous;              !- Numeric Type
+
+Construction,
+    Exterior Wall,           !- Name
+    NoMassInsulation;        !- Outside Layer
+
+Construction,
+    Floor,                   !- Name
+    NoMassInsulation;        !- Outside Layer
+
+Construction,
+    Roof,                    !- Name
+    NoMassInsulation;        !- Outside Layer
+
+Zone,
+    ZoneCold,                !- Name
+    ,                        !- Direction of Relative North {deg}
+    , , ,                               !- X,Y,Z  {m}
+    1;                       !- Type
+
+BuildingSurface:Detailed,
+    ZoneHotFloor,            !- Name
+    Floor,                   !- Surface Type
+    Floor,                   !- Construction Name
+    ZoneHot,                 !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    1.5, 1.5, 0.0,                      !- X,Y,Z  1 {m}
+    1.5, 0, 0.0,                        !- X,Y,Z  2 {m}
+    0.0, 0, 0.0,                        !- X,Y,Z  3 {m}
+    0.0, 1.5, 0.0;                      !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneHotRoof,             !- Name
+    Roof,                    !- Surface Type
+    Roof,                    !- Construction Name
+    ZoneHot,                 !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    0.0, 1.5, 1.5,                      !- X,Y,Z  1 {m}
+    0.0, 0, 1.5,                        !- X,Y,Z  2 {m}
+    1.5, 0, 1.5,                        !- X,Y,Z  3 {m}
+    1.5, 1.5, 1.5;                      !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneHotExtEast,          !- Name
+    Wall,                    !- Surface Type
+    Exterior Wall,           !- Construction Name
+    ZoneHot,                 !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    1.5, 0, 1.5,                        !- X,Y,Z  1 {m}
+    1.5, 0, 0.0,                        !- X,Y,Z  2 {m}
+    1.5, 1.5, 0.0,                      !- X,Y,Z  3 {m}
+    1.5, 1.5, 1.5;                      !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneHotExtWest,          !- Name
+    Wall,                    !- Surface Type
+    Exterior Wall,           !- Construction Name
+    ZoneHot,                 !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    0, 1.5, 1.5,                        !- X,Y,Z  1 {m}
+    0, 1.5, 0.0,                        !- X,Y,Z  2 {m}
+    0.0, 0, 0.0,                        !- X,Y,Z  3 {m}
+    0.0, 0, 1.5;                        !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneHotIntPart,          !- Name
+    Wall,                    !- Surface Type
+    ActiveInsulationINT,     !- Construction Name
+    ZoneHot,                 !- Zone Name
+    Surface,                 !- Outside Boundary Condition
+    ZoneAIIntPartHot,        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    1.5, 1.5, 1.5,                      !- X,Y,Z  1 {m}
+    1.5, 1.5, 0.0,                      !- X,Y,Z  2 {m}
+    0.0, 1.5, 0.0,                      !- X,Y,Z  3 {m}
+    0.0, 1.5, 1.5;                      !- X,Y,Z  4 {m}
+
+BuildingSurface:Detailed,
+    ZoneHotExtSouth,         !- Name
+    Wall,                    !- Surface Type
+    Exterior Wall,           !- Construction Name
+    ZoneHot,                 !- Zone Name
+    Adiabatic,               !- Outside Boundary Condition
+    ,                        !- Outside Boundary Condition Object
+    NoSun,                   !- Sun Exposure
+    NoWind,                  !- Wind Exposure
+    ,                        !- View Factor to Ground
+    ,                        !- Number of Vertices
+    0, 0, 1.5,                          !- X,Y,Z  1 {m}
+    0, 0, 0.0,                          !- X,Y,Z  2 {m}
+    1.5, 0, 0.0,                        !- X,Y,Z  3 {m}
+    1.5, 0, 1.5;                        !- X,Y,Z  4 {m}
+
+Schedule:Compact,
+    VentSlab AlwaysON,       !- Name
+    FRACTIONAL,              !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: AllDays,            !- Field 2
+    Until: 24:00, 1;         !- Field 4
+
+Schedule:Compact,
+    CoolControlTempHigh,     !- Name
+    TEMPERATURE,             !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: AllDays,            !- Field 2
+    Until: 24:00, 1;         !- Field 4
+
+Schedule:Compact,
+    CoolControlTempLow,      !- Name
+    TEMPERATURE,             !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: AllDays,            !- Field 2
+    Until:24:00, 1;          !- Field 4
+
+Schedule:Compact,
+    CoolTempHighInlet,       !- Name
+    TEMPERATURE,             !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: AllDays,            !- Field 2
+    Until:24:00, 40;         !- Field 4
+
+Schedule:Compact,
+    CoolTempLowInlet,        !- Name
+    TEMPERATURE,             !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: AllDays,            !- Field 2
+    Until:24:00, 40;         !- Field 4
+
+Schedule:Compact,
+    HeatControlTempHigh,     !- Name
+    TEMPERATURE,             !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: AllDays,            !- Field 2
+    Until: 24:00, 40;        !- Field 4
+
+Schedule:Compact,
+    HeatControlTempLow,      !- Name
+    TEMPERATURE,             !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: AllDays,            !- Field 2
+    Until:24:00, 40;         !- Field 4
+
+Schedule:Compact,
+    HeatTempHighInlet,       !- Name
+    TEMPERATURE,             !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: AllDays,            !- Field 2
+    Until:24:00, 40;         !- Field 4
+
+Schedule:Compact,
+    HeatTempLowInlet,        !- Name
+    TEMPERATURE,             !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: AllDays,            !- Field 2
+    Until:24:00, 40;         !- Field 4
+
+Schedule:Compact,
+    AlwaysON,                !- Name
+    FRACTIONAL,              !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: AllDays,            !- Field 2
+    Until:24:00, 1;          !- Field 4
+
+Output:Surfaces:List,Details;
+Output:Schedules,Timestep;
+Output:Constructions,Constructions,Materials;
+
+Output:SQLite,
+    SimpleAndTabular;        !- Option Type
+
+Building,
+    BESTEST 920,             !- Name
+    0.0,                     !- North Axis {deg}
+    City,                    !- Terrain
+    ,                        !- Loads Convergence Tolerance Value
+    ,                        !- Temperature Convergence Tolerance Value {deltaC}
+    FullInteriorAndExteriorWithReflections,  !- Solar Distribution
+    25,                      !- Maximum Number of Warmup Days
+    6;                       !- Minimum Number of Warmup Days
+
+GlobalGeometryRules,
+    UpperLeftCorner,         !- Starting Vertex Position
+    Counterclockwise,        !- Vertex Entry Direction
+    Relative,                !- Coordinate System
+    Relative,                !- Daylighting Reference Point Coordinate System
+    Relative;                !- Rectangular Surface Coordinate System
+
+Material:NoMass,
+    NoMassInsulation,        !- Name
+    MediumRough,             !- Roughness
+    25.175,                  !- Thermal Resistance {m2-K/W}
+    0.0000001;               !- Thermal Absorptance
+
+Output:Diagnostics,
+    DisplayAllWarnings,      !- Key 1
+    DisplayExtraWarnings;    !- Key 2
+
+Output:VariableDictionary,regular;
+
+OutputControl:Table:Style,
+    HTML;                    !- Column Separator
+
+RunPeriod,
+    Run Period 1,            !- Name
+    1,                       !- Begin Month
+    1,                       !- Begin Day of Month
+    1,                       !- End Month
+    3,                       !- End Day of Month
+    UseWeatherFile,          !- Day of Week for Start Day
+    Yes,                     !- Use Weather File Holidays and Special Days
+    Yes,                     !- Use Weather File Daylight Saving Period
+    No,                      !- Apply Weekend Holiday Rule
+    Yes,                     !- Use Weather File Rain Indicators
+    Yes;                     !- Use Weather File Snow Indicators
+
+ScheduleTypeLimits,
+    ActivityLevel,           !- Name
+    0,                       !- Lower Limit Value
+    ,                        !- Upper Limit Value
+    Continuous,              !- Numeric Type
+    activitylevel;           !- Unit Type
+
+SimulationControl,
+    No,                      !- Do Zone Sizing Calculation
+    No,                      !- Do System Sizing Calculation
+    No,                      !- Do Plant Sizing Calculation
+    No,                      !- Run Simulation for Sizing Periods
+    Yes,                     !- Run Simulation for Weather File Run Periods
+    No;                      !- Do HVAC Sizing Simulation for Sizing Periods
+
+Site:GroundTemperature:BuildingSurface,18,18,18,18,18,18,18,18,18,18,18,18;
+
+Site:Location,
+    AMSTERDAM_NLD,           !- Name
+    52.3,                    !- Latitude {deg}
+    4.77,                    !- Longitude {deg}
+    1.0,                     !- Time Zone {hr}
+    -2.0;                    !- Elevation {m}
+
+Timestep,60;
+Version,8.6;
